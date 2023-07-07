@@ -1,0 +1,84 @@
+/* THIS NODE RUNS THROUGH ALL THE POINTS AND STRAIGHTENS THEM OUT ALONG X AND Z
+    THIS CREATES RECTANGULAR BUILDINGS THAT STILL CONTAIN THE HEIGHT VALUES OF THE ORIGINAL PATH
+*/
+
+int numpt = @numpt; // stores the number of points
+int point1; // index for point1
+int point2; // index for point2
+int start; // index for the start of building
+int end; // index for the end of the building
+int ptArrayIndex = 0; // index for the points array
+int points [] ; // array that holds all the points in the building
+
+float lambda = 0; // stores the value to multiply the vector by
+
+vector point1pos; // position of point1
+vector point2pos; // position of point2
+vector current; // position of current point (when looping through points in building)
+vector p1current; // vector between point1 and current
+vector p1p2; // vector between the two points to put the points in between on
+vector perp; // vector perpendicular to p1p2 vector
+vector newPointPos; // new position for the point
+
+// loop through all the points
+for (int i = 0; i < numpt -1; i++) {
+
+    // if the point's movable attribute is 1 or true
+    if (point(0, "movable", i) == 1) {
+        
+        point1 = i; // set point 1 to the iteration of the loop
+        point1pos = point(0, "P", i); // set the point1 position
+        start = i+1; // set the start to the iteration +1;
+
+        // loop through until the next point with the movable attribute = 1 is true
+        for (int j = i+1; j < numpt; j++) {
+            end = j; // set the end = j every time
+            if (point(0, "movable", j) == 1) {
+                point2 = j; // set point2 to the iteration of the loop j
+                point2pos = point(0, "P", j); // set the point2 position
+                break; // break the loop
+            }
+
+            // if the statement isn't true then push the point into the array
+            else {
+                push(points, j);
+            }
+        }
+        
+        // in case there are no points between the start and end points of the building
+        if (end-start > 0) {
+
+            p1p2 = point2pos - point1pos; // find the vector between the two points
+            perp.x = 1/p1p2.x; // set the perpendicular x to 1/the p1p2.x (reciprocal)
+            perp.z = -1/p1p2.z; // set the perpendicular z to -1/the p1p2.z (negative reciprocal)
+            perp.y = p1p2.y; // set the perpendicular y to the p1p2 vector's y (because it only changes on the x and z axis not the y axis)
+                
+            ptArrayIndex = 0; // set the counter to 0 before entering the loop
+            
+            // loop through all points between the beginning and end of the building (using start and end variables)
+            for (int k = start; k < end; k++) {
+
+                current = point(0, "P", points[ptArrayIndex]); // set the current position to the position of the point with the iteration of the loop k
+                p1current = current - point1pos; // find the vector between the current and point1
+
+                // checks if the two vectors are parallel (if they are there is no need to change the point's position)        
+                if ((p1current.x*p1p2.z)-(p1current.z*p1p2.x) != 0) {
+                    
+                    // using some vector math, finds the closest point along vector p1p2 between the current point and p1p2
+                    lambda = ((perp.x * point1pos.z)-(perp.z*point1pos.x)-(perp.x*current.z)+(perp.z*current.x))/((perp.z*p1p2.x)-(perp.x*p1p2.z)); // finds the ratio of the vector
+                    newPointPos = point1pos + (lambda * p1p2); // multiply the ratio by the vector and add to point 1 position to get the new point position
+                    newPointPos.y = current.y; // reset the new point position's y value to make sure not to affect the y
+                    setpointattrib(0, "P", k, newPointPos); // set the points position to the new point position
+                    ptArrayIndex++; // add to the count
+                }
+            }
+
+            // empty array for next iteration
+            foreach (int pt; points) {
+                pop(points);
+            }
+
+        }
+        
+    }
+}

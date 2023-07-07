@@ -1,0 +1,100 @@
+/* Runs through all points and adds new points based on the amount of buildings inputted before. Works by traversing between points and calculating the distance
+    needed to travel to add a new point. By adding new points, instead of extruding or moving current ones it allows for the initial geometry to stay, 
+    making the buildings more adaptable to the path's curve. It also removes the current primitive "0", and adds polylines through the entire line, with the new points as well.
+    This allows for reorganizing of point index to make it consecutive through vertexes.
+*/
+
+int numP = @numpt; // number of pts in geo
+int newPointNum = numP; // holds index value of new point (to modify attributes)
+int lastPointNum = 0; // num of last neighbouring point (for polyline, "prim", modification in while loop)
+int newPrim; // stores the value of the new polyine when created (used in while loop)
+
+float divideDist = @divideDistance; // distance of a single building (calculated in previous node)
+float distanceTravelled = 0; // to keep the distance travelled along the line (used in for loop)
+float distanceBetween = 0; // distance between the current two points (used in for loop)
+float combinedSegmentDist = 0; // holds the distance of buildings added within 2 points - in case there is a possibility to add more within those 2 pts (used in while loop)
+float neededDist; // needed distance to travel along line before adding point
+
+vector point1; // vector to hold position of point 1 (used in for loop)
+vector point2; // holds pos of point 2 (used in for loop)
+vector vBetween; // vector between p1 and p2 (used in for loop)
+vector newPointPos; // holds pos of new point (used in while loop)
+
+
+ // add new point attribute "movable" - this attribute will be used many times later - it essentially shows which points define extrusion of a new building
+addattrib(0, "point", "movable", 0); // will be added to all the new points created in this node
+
+    // for loop that runs through all the points
+    for (int i = 0; i < numP-1; i++) {
+
+        // set point1 and point2 to the relative points in the for loop iteration "i"
+        point1 = point(0, "P", i);
+        point2 = point(0, "P", i+1);
+
+        distanceBetween = length(point2-point1); // calculates the distance between the two points
+        distanceTravelled += distanceBetween; // adds the distance between to the distance travelled (this holds how far along the path travelled)
+
+        lastPointNum = i; // sets this to the current iteration, so if a new point is added we can modify the polyline accordingly
+
+        // if travelled further than needed for 1 single building
+        // and the newest point number is less than the number of points + the building amount-1 
+        // ^^ (a check to make sure the function hasn't already added enough points for the amount of buildings)
+        if (distanceTravelled > divideDist && newPointNum < numP + (i@buildingamount - 1)) {
+
+            vBetween = point2-point1; // finds the vector between point1 and point2 (so that it can calculate where to place the new point)
+            combinedSegmentDist = 0; // set the combined segmenet distance to 0 before entering the while loop
+            
+            // finds the distance needed to multiply by the vector to find the new point position
+            neededDist = divideDist - (distanceTravelled - distanceBetween); // divide distance (distance calculated for 1 building) minus the distance until point1 (not point2)
+
+            // while loop that doesn't stop until all possible points have been added between point 1 and point2
+            while (combinedSegmentDist+neededDist < distanceBetween && newPointNum < numP + (i@buildingamount - 1)) {   
+
+                // using vector math, it first finds the ratio between the needed distance and the distance between and then multiplies by the vector between. Finally it adds to point1 to get position  
+                newPointPos = point1 + (vBetween * ((neededDist+combinedSegmentDist)/distanceBetween)); // find the new point position
+                
+                // add new point in the position defined above, set the attribute movable to 1 or "true", and add a new polyline
+                addpoint(0, newPointPos);
+                setpointattrib(0, "movable", newPointNum, 1);
+                newPrim = addprim(0, "polyline");
+
+                // add a vertex to the new point with the new polyine as the primitive
+                addvertex(0, newPrim, newPointNum);
+
+                // add a vertex to the last point with the new polyline as the primitive
+                addvertex(0, newPrim, lastPointNum);
+
+                // add another prim
+                newPrim = addprim(0, "polyline");
+                
+                // add a vertex to the new point and to the next point with the new polyline as the primitive
+                addvertex(0, newPrim, newPointNum);
+                addvertex(0, newPrim, i+1);
+                
+                // in case of adding more points within point1 and point2, the distance that was travelled already to add this point is added to the combined segment distance variable
+                combinedSegmentDist += neededDist;
+
+                // exit check (in case the maximum number of points added has been reached (enough buildings has been added))
+                if (combinedSegmentDist > divideDist) {
+                    removeprim(0, newPrim-2, 0);
+                }
+
+                neededDist = divideDist; // needed distance now becomes the divide distance (in the case that the while loop runs again)
+                lastPointNum = newPointNum; // last point number becomes the current point number (in the case that the while loop runs again)
+                newPointNum ++; // add to the index (knows what point index is the next point added)
+            }
+
+            // add to the distance travelled to iterate through the for loop again
+            distanceTravelled = distanceBetween-combinedSegmentDist; // subtracts combinedSegment distance in case there is leftover distance between the last point added and point2
+        }
+
+        // if no new point is added, add a new polyline between the points (original polyline will be removed)
+        else {
+            newPrim = addprim(0, "polyline");
+            addvertex(0, newPrim, i);
+            addvertex(0, newPrim, i+1);
+        }
+    }
+
+    // remove original polyline
+    removeprim(0, 0, 0);

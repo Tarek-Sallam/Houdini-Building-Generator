@@ -1,0 +1,89 @@
+float distanceNeeded = @doorLocX;
+vector cornerL; // left bottom corner of door
+vector cornerR; // right bottom corner of door
+vector middleP; // middle bottom point of door
+vector point1; 
+vector point2;
+vector betweenflat;
+vector between;
+float distanceTravelled = 0;
+float highestY;
+
+// loop through points
+for (int i = 0; i < numpt; i++) {
+
+    // select the current point and next point
+    point1 = point(0, "P", i);
+    point2 = point(0, "P", i + 1);
+    
+    // find between vector
+    between = point2-point1;
+    
+    // find between flat vector (y = 0)
+    betweenflat = between;
+    betweenflat.y = 0;
+    
+    // add to distance travelled
+    distanceTravelled += length(betweenflat);
+    
+    // if the distance travelled is greater than needed
+    if (distanceTravelled > distanceNeeded) {
+    
+        // find the point where the distance value is met
+        distanceTravelled-=length(betweenflat);
+        distanceNeeded -= distanceTravelled;
+        cornerL = point1 + (normalize(between) * distanceNeeded);
+        
+        // new distance needed is length of door
+        distanceNeeded = detail(1, "doorWidth", 0);
+        
+        // set the point2 - cornerL point to the distance travelled
+        distanceTravelled = length(point2 - cornerL);
+        highestY = cornerL.y;
+        
+        // in case point 2 is greater than the distance needed to fit the door
+        if (distanceTravelled > distanceNeeded) {
+            cornerR = cornerL + (normalize(between) * distanceNeeded);
+        }
+        
+        // otherwise loop through points until finding the point where corner R is
+        else {
+            for (int j = i + 1; j < numpt; j++) {
+                
+                point1 = point(0, "P", j);
+                point2 = point(0, "P", j+1);
+                
+                // record highest point
+                if (point1.y > highestY) {
+                    highestY = point1.y;
+                }
+                
+                between = point2-point1;
+                betweenflat = between;
+                betweenflat.y = 0;
+                distanceTravelled += length(betweenflat);
+                
+                if (distanceTravelled > distanceNeeded) {
+                    distanceTravelled -= length(betweenflat);
+                    distanceNeeded -= distanceTravelled;
+                    cornerR = point1 + (normalize(between) * distanceNeeded);
+                    break;
+                }
+                    
+            }
+        }
+        
+        // if the right corner is the highest point
+        if (cornerR.y > highestY) {
+            highestY = cornerR.y;
+        }
+        
+        // find middle p
+        middleP = (cornerR - cornerL)/2 + cornerL;
+        middleP.y = highestY;
+        
+        // add point at middle P
+        addpoint(0, middleP);
+        break;
+    }
+}
